@@ -28,12 +28,145 @@
         .controls { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
         select, input { 
             background: var(--card); border: 1px solid #334155; 
-            color: white; padding: 12px; border-radius: 10px; font-size: 16px; 
+            color: white; padding: 12px; border-radius: 10px; font-size: 16px; width: 100%; box-sizing: border-box;
         }
 
         /* Boutons */
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .btn { border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; color: #0f172a; }
+        .btn-import { background: var(--success); }
+        .btn-add { background: var(--accent); }
+
+        /* Grille de fichiers */
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; padding: 20px; }
+        .file-card { 
+            background: var(--card); border-radius: 15px; padding: 15px; 
+            display: flex; flex-direction: column; align-items: center; 
+            text-align: center; position: relative; animation: slideUp 0.4s ease;
+            border: 1px solid #334155;
+        }
+        .file-icon { font-size: 40px; margin-bottom: 10px; }
+        .file-name { font-size: 12px; font-weight: 500; word-break: break-all; height: 32px; overflow: hidden; color: var(--text); }
+        .file-size { font-size: 10px; color: #94a3b8; margin-top: 5px; }
+
+        /* Badge de suppression */
+        .del-badge { 
+            position: absolute; top: -5px; right: -5px; background: var(--danger); 
+            width: 24px; height: 24px; border-radius: 50%; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+            z-index: 5; color: white; border: 2px solid var(--bg);
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        #file-upload { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Mes Fichiers</h1>
+        <p style="color: #94a3b8; margin: 5px 0 0;">Gestionnaire Intelligent</p>
+    </div>
+
+    <div class="controls">
+        <label style="font-size: 12px; color: var(--accent); font-weight: bold;">🤖 TRI AUTOMATISÉ PAR LE ROBOT :</label>
+        <select id="botSort" onchange="applyRobotSort()">
+            <option value="date">Plus récents en premier</option>
+            <option value="name">Ordre Alphabétique (A-Z)</option>
+            <option value="size">Taille (Plus lourds)</option>
+        </select>
+
+        <div class="btn-group">
+            <button class="btn btn-import" onclick="document.getElementById('file-upload').click()">📥 IMPORTER</button>
+            <button class="btn btn-add" onclick="manualAdd()">➕ CRÉER</button>
+        </div>
+        <input type="file" id="file-upload" onchange="importFile(this.files)">
+    </div>
+
+    <div class="file-grid" id="fileDisplay"></div>
+
+    <script>
+        // 1. CHARGEMENT : On récupère les données sauvegardées ou on met la liste de base
+        let myFiles = JSON.parse(localStorage.getItem('myFilesStorage')) || [
+            { id: 1, name: "Notice_Usine.pdf", size: 1024, timestamp: 1713000000, date: "13/04/2024", icon: "📄" },
+            { id: 2, name: "Schéma_Ligne_2", size: 5400, timestamp: 1713500000, date: "19/04/2024", icon: "📂" }
+        ];
+
+        // 2. SAUVEGARDE : Fonction pour enregistrer dans le téléphone
+        function saveToPhone() {
+            localStorage.setItem('myFilesStorage', JSON.stringify(myFiles));
+        }
+
+        function applyRobotSort() {
+            const mode = document.getElementById('botSort').value;
+            if (mode === "name") myFiles.sort((a, b) => a.name.localeCompare(b.name));
+            if (mode === "size") myFiles.sort((a, b) => b.size - a.size);
+            if (mode === "date") myFiles.sort((a, b) => b.timestamp - a.timestamp);
+            render();
+        }
+
+        function manualAdd() {
+            const nom = prompt("Nom du dossier ou fichier :");
+            if (nom) {
+                const now = new Date();
+                myFiles.push({
+                    id: Date.now(),
+                    name: nom,
+                    size: 0,
+                    timestamp: now.getTime() / 1000,
+                    date: now.toLocaleDateString(),
+                    icon: nom.includes('.') ? "📄" : "📂"
+                });
+                saveToPhone(); // Sauvegarde immédiate
+                applyRobotSort();
+            }
+        }
+
+        function importFile(fileList) {
+            const f = fileList[0];
+            if (!f) return;
+            const now = new Date();
+            myFiles.push({
+                id: Date.now(),
+                name: f.name,
+                size: Math.round(f.size / 1024),
+                timestamp: now.getTime() / 1000,
+                date: now.toLocaleDateString(),
+                icon: f.type.includes('image') ? "🖼️" : "📄"
+            });
+            saveToPhone(); // Sauvegarde immédiate
+            applyRobotSort();
+        }
+
+        function deleteFile(id) {
+            if (confirm("Supprimer définitivement ce fichier ?")) {
+                myFiles = myFiles.filter(f => f.id !== id);
+                saveToPhone(); // Sauvegarde après suppression
+                render();
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('fileDisplay');
+            container.innerHTML = "";
+            myFiles.forEach(f => {
+                const card = document.createElement('div');
+                card.className = "file-card";
+                card.innerHTML = `
+                    <div class="del-badge" onclick="deleteFile(${f.id})">×</div>
+                    <div class="file-icon">${f.icon}</div>
+                    <div class="file-name">${f.name}</div>
+                    <div class="file-size">${f.size} Ko</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Lancement initial
+        applyRobotSort();
+    </script>
+</body>
+</html>
         .btn-import { background: var(--success); }
         .btn-add { background: var(--accent); }
 
