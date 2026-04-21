@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File-Bot | Trieur Intelligent</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; margin: 0; }
+        .container { max-width: 600px; margin: auto; }
+        h1 { color: #38bdf8; font-size: 1.4rem; border-left: 4px solid #38bdf8; padding-left: 10px; }
+        
+        .bot-panel { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
+        .bot-panel label { display: block; margin-bottom: 10px; font-weight: bold; color: #94a3b8; }
+        
+        select { width: 100%; padding: 10px; border-radius: 6px; background: #0f172a; color: white; border: 1px solid #38bdf8; margin-bottom: 10px; }
+
+        .file-list { list-style: none; padding: 0; }
+        .file-item { 
+            background: #1e293b; margin-bottom: 8px; padding: 12px; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;
+        }
+        .file-info b { color: #f8fafc; }
+        .file-meta { color: #94a3b8; font-size: 0.75rem; }
+        .file-size { background: #334155; padding: 3px 7px; border-radius: 4px; color: #38bdf8; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>FILE-BOT MANAGER</h1>
+    
+    <div class="bot-panel">
+        <label>🤖 Ordre de tri du Robot :</label>
+        <select id="sortOrder" onchange="robotSort()">
+            <option value="name">Alphabétique (A-Z)</option>
+            <option value="size">Taille (Plus lourd au début)</option>
+            <option value="date">Dernière modification (Récent au début)</option>
+        </select>
+    </div>
+
+    <ul class="file-list" id="fileList">
+        </ul>
+</div>
+
+<script>
+    // Notre base de données de fichiers (simulation)
+    let files = [
+        { name: "Schema_Electrique.pdf", size: 1500, date: "2024-04-10", rawDate: 1712736000 },
+        { name: "Backup_Automate.zip", size: 45000, date: "2024-04-20", rawDate: 1713513600 },
+        { name: "Notice_Daucy.docx", size: 500, date: "2024-03-15", rawDate: 1710489600 },
+        { name: "Config_Reseau.txt", size: 120, date: "2024-04-21", rawDate: 1713686400 },
+        { name: "Photo_Panne_Ligne2.jpg", size: 3200, date: "2024-04-18", rawDate: 1713427200 }
+    ];
+
+    function renderFiles(data) {
+        const list = document.getElementById('fileList');
+        list.innerHTML = "";
+        data.forEach(file => {
+            const li = document.createElement('li');
+            li.className = "file-item";
+            li.innerHTML = `
+                <div class="file-info">
+                    <b>${file.name}</b><br>
+                    <span class="file-meta">Modifié le : ${file.date}</span>
+                </div>
+                <span class="file-size">${(file.size / 1024).toFixed(1)} MB</span>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function robotSort() {
+        const criteria = document.getElementById('sortOrder').value;
+        
+        if (criteria === "name") {
+            files.sort((a, b) => a.name.localeCompare(b.name));
+        } else if (criteria === "size") {
+            files.sort((a, b) => b.size - a.size);
+        } else if (criteria === "date") {
+            files.sort((a, b) => b.rawDate - a.rawDate);
+        }
+        
+        renderFiles(files);
+    }
+
+    // Premier affichage au chargement
+    robotSort();
+</script>
+
+</body>
+</html>
