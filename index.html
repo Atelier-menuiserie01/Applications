@@ -3,37 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File-Bot | Trieur Intelligent</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f8fafc; padding: 15px; margin: 0; }
-        .container { max-width: 600px; margin: auto; }
-        h1 { color: #38bdf8; font-size: 1.4rem; border-left: 4px solid #38bdf8; padding-left: 10px; }
-        
-        .bot-panel { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
-        .bot-panel label { display: block; margin-bottom: 10px; font-weight: bold; color: #94a3b8; }
-        
-        select { width: 100%; padding: 10px; border-radius: 6px; background: #0f172a; color: white; border: 1px solid #38bdf8; margin-bottom: 10px; }
+    <title>MyFiles Pro - Manager</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#38bdf8">
 
-        .file-list { list-style: none; padding: 0; }
-        .file-item { 
-            background: #1e293b; margin-bottom: 8px; padding: 12px; border-radius: 8px;
-            display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;
+    <style>
+        :root { 
+            --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; 
+            --text: #f8fafc; --danger: #ef4444; --success: #10b981; 
         }
-        .file-info b { color: #f8fafc; }
-        .file-meta { color: #94a3b8; font-size: 0.75rem; }
-        .file-size { background: #334155; padding: 3px 7px; border-radius: 4px; color: #38bdf8; }
+        
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--bg); color: var(--text); 
+            margin: 0; padding: 0; padding-bottom: 100px;
+        }
+
+        /* En-tête */
+        .header { padding: 40px 20px 20px; background: var(--bg); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #334155; }
+        h1 { margin: 0; font-size: 28px; color: var(--accent); }
+
+        /* Zones de contrôle */
+        .controls { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        select, input { 
+            background: var(--card); border: 1px solid #334155; 
+            color: white; padding: 12px; border-radius: 10px; font-size: 16px; 
+        }
+
+        /* Boutons */
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn { border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; color: #0f172a; }
+        .btn-import { background: var(--success); }
+        .btn-add { background: var(--accent); }
+
+        /* Grille de fichiers */
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; padding: 20px; }
+        .file-card { 
+            background: var(--card); border-radius: 15px; padding: 15px; 
+            display: flex; flex-direction: column; align-items: center; 
+            text-align: center; position: relative; animation: slideUp 0.4s ease;
+        }
+        .file-icon { font-size: 40px; margin-bottom: 10px; }
+        .file-name { font-size: 12px; font-weight: 500; word-break: break-all; height: 32px; overflow: hidden; }
+        .file-size { font-size: 10px; color: #94a3b8; margin-top: 5px; }
+
+        /* Badge de suppression */
+        .del-badge { 
+            position: absolute; top: -5px; right: -5px; background: var(--danger); 
+            width: 24px; height: 24px; border-radius: 50%; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+            z-index: 5;
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        #file-upload { display: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>FILE-BOT MANAGER</h1>
-    
-    <div class="bot-panel">
-        <label>🤖 Ordre de tri du Robot :</label>
-        <select id="sortOrder" onchange="robotSort()">
-            <option value="name">Alphabétique (A-Z)</option>
-            <option value="size">Taille (Plus lourd au début)</option>
+    <div class="header">
+        <h1>Mes Fichiers</h1>
+        <p style="color: #94a3b8; margin: 5px 0 0;">Gestionnaire Intelligent</p>
+    </div>
+
+    <div class="controls">
+        <label style="font-size: 12px; color: var(--accent); font-weight: bold;">🤖 TRI AUTOMATISÉ PAR LE ROBOT :</label>
+        <select id="botSort" onchange="applyRobotSort()">
+            <option value="date">Plus récents en premier</option>
+            <option value="name">Ordre Alphabétique (A-Z)</option>
+            <option value="size">Taille (Plus lourds)</option>
+        </select>
+
+        <div class="btn-group">
+            <button class="btn btn-import" onclick="document.getElementById('file-upload').click()">📥 IMPORTER</button>
+            <button class="btn btn-add" onclick="manualAdd()">➕ CRÉER</button>
+        </div>
+        <input type="file" id="file-upload" onchange="importFile(this.files)">
+    </div>
+
+    <div class="file-grid" id="fileDisplay"></div>
+
+    <script>
+        let myFiles = [
+            { id: 1, name: "Notice_Usine.pdf", size: 1024, timestamp: 1713000000, date: "13/04/2024", icon: "📄" },
+            { id: 2, name: "Schéma_Ligne_2", size: 5400, timestamp: 1713500000, date: "19/04/2024", icon: "📂" }
+        ];
+
+        function applyRobotSort() {
+            const mode = document.getElementById('botSort').value;
+            if (mode === "name") myFiles.sort((a, b) => a.name.localeCompare(b.name));
+            if (mode === "size") myFiles.sort((a, b) => b.size - a.size);
+            if (mode === "date") myFiles.sort((a, b) => b.timestamp - a.timestamp);
+            render();
+        }
+
+        function manualAdd() {
+            const nom = prompt("Nom du dossier ou fichier :");
+            if (nom) {
+                const now = new Date();
+                myFiles.push({
+                    id: Date.now(),
+                    name: nom,
+                    size: 0,
+                    timestamp: now.getTime() / 1000,
+                    date: now.toLocaleDateString(),
+                    icon: nom.includes('.') ? "📄" : "📂"
+                });
+                applyRobotSort();
+            }
+        }
+
+        function importFile(fileList) {
+            const f = fileList[0];
+            if (!f) return;
+            const now = new Date();
+            myFiles.push({
+                id: Date.now(),
+                name: f.name,
+                size: Math.round(f.size / 1024),
+                timestamp: now.getTime() / 1000,
+                date: now.toLocaleDateString(),
+                icon: f.type.includes('image') ? "🖼️" : "📄"
+            });
+            applyRobotSort();
+        }
+
+        function deleteFile(id) {
+            if (confirm("Supprimer définitivement ce fichier ?")) {
+                myFiles = myFiles.filter(f => f.id !== id);
+                render();
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('fileDisplay');
+            container.innerHTML = "";
+            myFiles.forEach(f => {
+                const card = document.createElement('div');
+                card.className = "file-card";
+                card.innerHTML = `
+                    <div class="del-badge" onclick="deleteFile(${f.id})">×</div>
+                    <div class="file-icon">${f.icon}</div>
+                    <div class="file-name">${f.name}</div>
+                    <div class="file-size">${f.size} Ko</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        applyRobotSort();
+    </script>
+</body>
+</html>
             <option value="date">Dernière modification (Récent au début)</option>
         </select>
     </div>
